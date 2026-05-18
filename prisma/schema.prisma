@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  VENUE_OWNER
+  MANAGER
+  STAFF
+  CUSTOMER
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BLOCKED
+  BOOKED
+  MAINTENANCE
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum SportType {
+  FOOTBALL
+  CRICKET
+  BADMINTON
+  TENNIS
+  PICKLEBALL
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id String @id @default(cuid())
+
+  name     String
+  email    String @unique
+  password String
+
+  role Role
+
+  ownedVenues Venue[]
+
+  bookings  Booking[]
+  slotLocks SlotLock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Venue {
+  id String @id @default(cuid())
+
+  name     String
+  location String
+
+  ownerId String
+
+  owner User @relation(fields: [ownerId], references: [id])
+
+  turfs Turf[]
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Turf {
+  id String @id @default(cuid())
+
+  name        String
+  sport       SportType
+  description String?
+
+  isActive Boolean @default(true)
+
+  venueId String
+
+  venue Venue @relation(fields: [venueId], references: [id])
+
+  images TurfImage[]
+
+  slots Slot[]
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Slot {
+  id String @id @default(cuid())
+
+  date DateTime
+
+  startTime String
+  endTime   String
+
+  duration Int
+
+  price Int
+
+  status SlotStatus
+
+  turfId String
+
+  turf Turf @relation(fields: [turfId], references: [id])
+
+  bookings Booking[]
+  locks    SlotLock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Booking {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  venueId String
+  venue   Venue  @relation(fields: [venueId], references: [id])
+
+  turfId String
+  turf   Turf   @relation(fields: [turfId], references: [id])
+
+  slotId String
+  slot   Slot   @relation(fields: [slotId], references: [id])
+
+  customerName  String
+  customerPhone String
+
+  bookingDate DateTime
+
+  totalAmount Int
+  advancePaid Int
+
+  paymentStatus PaymentStatus
+
+  status BookingStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TurfImage {
+  id        String   @id @default(cuid())
+  url       String
+  turfId    String
+  turf      Turf     @relation(fields: [turfId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SlotLock {
+  id String @id @default(cuid())
+
+  slotId String
+  userId String
+
+  expiresAt DateTime
+
+  status SlotLockStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  slot Slot @relation(fields: [slotId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum SlotLockStatus {
+  ACTIVE
+  EXPIRED
+  CONVERTED
+}
