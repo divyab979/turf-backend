@@ -28,16 +28,26 @@ export class VenueService {
     });
   }
 
- findAll(user: {
-  id: string;
-  role: string;
-}) {
+  findAll(user: {
+    id: string;
+    role: string;
+  }) {
+    if (
+      user.role === "SUPER_ADMIN" ||
+      user.role === "CUSTOMER"
+    ) {
+      return this.prisma.venue.findMany({
+        include: {
+          owner: true,
+          turfs: true,
+        },
+      });
+    }
 
-  if (
-    user.role ===
-    "SUPER_ADMIN"
-  ) {
     return this.prisma.venue.findMany({
+      where: {
+        ownerId: user.id,
+      },
       include: {
         owner: true,
         turfs: true,
@@ -45,33 +55,19 @@ export class VenueService {
     });
   }
 
-  return this.prisma.venue.findMany({
-    where: {
-      ownerId: user.id,
-    },
-
-    include: {
-      owner: true,
-      turfs: true,
-    },
-  });
-}
-findOne(id: string) {
-
-  return this.prisma.venue.findUnique({
-    where: {
-      id,
-    },
-
-    include: {
-      owner: true,
-
-      turfs: {
-        include: {
-          slots: true,
+  findOne(id: string) {
+    return this.prisma.venue.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        owner: true,
+        turfs: {
+          include: {
+            slots: true,
+          },
         },
       },
-    },
-  });
-}
+    });
+  }
 }
