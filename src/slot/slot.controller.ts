@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   UseGuards,
+  Query,
 } from "@nestjs/common";
 
 import {
@@ -29,14 +30,12 @@ export class SlotController {
   @UseGuards(JwtAuthGuard)
   @Post(":turfId/generate")
   generateSlots(
-
     @Param("turfId")
     turfId: string,
 
     @Body()
     dto: GenerateSlotsDto
   ) {
-
     return this.slotService.generateSlots(
       turfId,
       dto
@@ -46,13 +45,20 @@ export class SlotController {
   @UseGuards(JwtAuthGuard)
   @Get(":turfId")
   findByTurf(
-
     @Param("turfId")
     turfId: string
   ) {
-
     return this.slotService.findByTurf(
       turfId
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  findAll(
+    @Query("courtId") courtId?: string,
+    @Query("date") date?: string,
+  ) {
+    return this.slotService.findAll(courtId, date);
   }
 }

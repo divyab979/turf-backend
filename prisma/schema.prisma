@@ -60,6 +60,9 @@ model User {
   bookings  Booking[]
   slotLocks SlotLock[]
 
+  venueId String?
+  venue   Venue? @relation("VenueStaff", fields: [venueId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -77,6 +80,8 @@ model Venue {
   turfs Turf[]
 
   bookings Booking[]
+
+  staff User[] @relation("VenueStaff")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

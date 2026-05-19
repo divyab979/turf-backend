@@ -107,6 +107,10 @@ export class BookingsService {
       )
     }
 
+    const userProfile = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
     const booking =
       await this.prisma.booking.create({
         data: {
@@ -118,7 +122,7 @@ export class BookingsService {
 
           slotId: slot.id,
 
-          customerName: 'Temp User',
+          customerName: userProfile?.name || 'Temp User',
           customerPhone: '9999999999',
 
           bookingDate: slot.date,
@@ -184,6 +188,10 @@ async getAdminBookings(
     whereClause.venue = {
       ownerId: user.id,
     };
+  } else if (
+    user.role === "MANAGER"
+  ) {
+    whereClause.venueId = user.venueId || "none";
   }
 
   return this.prisma.booking.findMany({

@@ -5,6 +5,8 @@ import {
   Post,
   Request,
   UseGuards,
+  Patch,
+  Param,
 } from "@nestjs/common";
 
 import { VenueService }
@@ -15,10 +17,6 @@ import { CreateVenueDto }
 
 import { JwtAuthGuard }
   from "../auth/guards/jwt-auth.guard";
-
-import {
-  Param,
-} from "@nestjs/common";
 
 @Controller("venues")
 export class VenueController {
@@ -44,21 +42,33 @@ export class VenueController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-findAll(
-  @Request()
-  req
-) {
-  return this.venueService.findAll(
-    req.user
-  );
-}
+  findAll(
+    @Request()
+    req
+  ) {
+    return this.venueService.findAll(
+      req.user
+    );
+  }
 
-@UseGuards(JwtAuthGuard)
-@Get(":id")
-findOne(
-  @Param("id")
-  id: string
-) {
-  return this.venueService.findOne(id);
-}
+  @UseGuards(JwtAuthGuard)
+  @Get(":id")
+  findOne(
+    @Param("id")
+    id: string
+  ) {
+    return this.venueService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(":id")
+  update(
+    @Param("id")
+    id: string,
+
+    @Body()
+    dto: { name?: string; location?: string }
+  ) {
+    return this.venueService.update(id, dto);
+  }
 }

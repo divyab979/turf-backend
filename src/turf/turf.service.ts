@@ -42,9 +42,10 @@ export class TurfService {
 
   async findByVenue(
     venueId: string,
-      date?: string,
-
+    date?: string,
   ) {
+    const startOfDay = date ? new Date(date + "T00:00:00") : undefined;
+    const endOfDay = date ? new Date(date + "T23:59:59") : undefined;
 
     const turfs =
       await this.prisma.turf.findMany({
@@ -53,29 +54,23 @@ export class TurfService {
         },
 
         include: {
-
           images: true,
 
           slots: {
+            where: startOfDay && endOfDay
+              ? {
+                  date: {
+                    gte: startOfDay,
+                    lte: endOfDay,
+                  },
+                }
+              : undefined,
 
- where: date
-  ? {
-      date: {
-        gte: new Date(date),
-
-        lt: new Date(
-          new Date(date).getTime() +
-          24 * 60 * 60 * 1000
-        ),
-      },
-    }
-  : undefined,
-
-  include: {
-    bookings: true,
-    locks: true,
-  },
-},
+            include: {
+              bookings: true,
+              locks: true,
+            },
+          },
         },
       });
 

@@ -31,12 +31,25 @@ export class VenueService {
   findAll(user: {
     id: string;
     role: string;
+    venueId?: string;
   }) {
     if (
       user.role === "SUPER_ADMIN" ||
       user.role === "CUSTOMER"
     ) {
       return this.prisma.venue.findMany({
+        include: {
+          owner: true,
+          turfs: true,
+        },
+      });
+    }
+
+    if (user.role === "MANAGER") {
+      return this.prisma.venue.findMany({
+        where: {
+          id: user.venueId || "none",
+        },
         include: {
           owner: true,
           turfs: true,
@@ -67,6 +80,21 @@ export class VenueService {
             slots: true,
           },
         },
+      },
+    });
+  }
+
+  update(
+    id: string,
+    dto: { name?: string; location?: string }
+  ) {
+    return this.prisma.venue.update({
+      where: {
+        id,
+      },
+      data: {
+        name: dto.name,
+        location: dto.location,
       },
     });
   }

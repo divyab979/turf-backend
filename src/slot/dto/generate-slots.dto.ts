@@ -2,6 +2,8 @@ import {
   IsInt,
   IsString,
   Min,
+  IsArray,
+  IsOptional,
 } from "class-validator";
 
 export class GenerateSlotsDto {
@@ -22,6 +24,19 @@ export class GenerateSlotsDto {
   @IsInt()
   eveningPrice: number;
 
+  @IsOptional()
   @IsInt()
-  days: number;
+  days?: number;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  daysOfWeek?: number[];
 }

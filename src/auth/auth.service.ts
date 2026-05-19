@@ -90,6 +90,8 @@ export class AuthService {
     email: user.email,
 
     name: user.name,
+
+    venueId: user.venueId,
   });
 
   const { password, ...safeUser } = user;
