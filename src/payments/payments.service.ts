@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 
 import * as crypto from 'crypto';
 
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 
