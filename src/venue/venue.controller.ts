@@ -67,7 +67,7 @@ export class VenueController {
     id: string,
 
     @Body()
-    dto: { name?: string; location?: string }
+    dto: Partial<CreateVenueDto>
   ) {
     return this.venueService.update(id, dto);
   }

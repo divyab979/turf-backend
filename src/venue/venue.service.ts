@@ -15,17 +15,39 @@ export class VenueService {
     private prisma: PrismaService
   ) {}
 
-  create(
+  async create(
     dto: CreateVenueDto,
     ownerId: string
   ) {
-    return this.prisma.venue.create({
+    const venue = await this.prisma.venue.create({
       data: {
         name: dto.name,
         location: dto.location,
+        address: dto.address,
         ownerId,
+        businessType: dto.businessType || "TURF",
+        bookingMode: dto.bookingMode || "FIXED_SLOTS",
+        gamesHosted: dto.gamesHosted || [],
+        numPoolTables: dto.numPoolTables,
+        numSnookerTables: dto.numSnookerTables,
+        numTvScreens: dto.numTvScreens,
+        numPsConsoles: dto.numPsConsoles,
+        numControllers: dto.numControllers,
+        description: dto.description,
+        amenities: dto.amenities || [],
       },
     });
+
+    if (dto.imageUrls && dto.imageUrls.length > 0) {
+      await this.prisma.venueImage.createMany({
+        data: dto.imageUrls.map((url) => ({
+          url,
+          venueId: venue.id,
+        })),
+      });
+    }
+
+    return this.findOne(venue.id);
   }
 
   findAll(user: {
@@ -33,15 +55,22 @@ export class VenueService {
     role: string;
     venueId?: string;
   }) {
+    const includeOption = {
+      owner: true,
+      images: true,
+      turfs: {
+        include: {
+          images: true,
+        },
+      },
+    };
+
     if (
       user.role === "SUPER_ADMIN" ||
       user.role === "CUSTOMER"
     ) {
       return this.prisma.venue.findMany({
-        include: {
-          owner: true,
-          turfs: true,
-        },
+        include: includeOption,
       });
     }
 
@@ -50,10 +79,7 @@ export class VenueService {
         where: {
           id: user.venueId || "none",
         },
-        include: {
-          owner: true,
-          turfs: true,
-        },
+        include: includeOption,
       });
     }
 
@@ -61,10 +87,7 @@ export class VenueService {
       where: {
         ownerId: user.id,
       },
-      include: {
-        owner: true,
-        turfs: true,
-      },
+      include: includeOption,
     });
   }
 
@@ -75,27 +98,63 @@ export class VenueService {
       },
       include: {
         owner: true,
+        images: true,
         turfs: {
           include: {
             slots: true,
+            images: true,
           },
         },
       },
     });
   }
 
-  update(
+  async update(
     id: string,
-    dto: { name?: string; location?: string }
+    dto: Partial<CreateVenueDto>
   ) {
-    return this.prisma.venue.update({
+    const updateData: any = {
+      name: dto.name,
+      location: dto.location,
+      address: dto.address,
+      businessType: dto.businessType,
+      bookingMode: dto.bookingMode,
+      gamesHosted: dto.gamesHosted,
+      numPoolTables: dto.numPoolTables,
+      numSnookerTables: dto.numSnookerTables,
+      numTvScreens: dto.numTvScreens,
+      numPsConsoles: dto.numPsConsoles,
+      numControllers: dto.numControllers,
+      description: dto.description,
+      amenities: dto.amenities,
+    };
+
+    // Filter undefined values
+    Object.keys(updateData).forEach(
+      (key) => updateData[key] === undefined && delete updateData[key]
+    );
+
+    await this.prisma.venue.update({
       where: {
         id,
       },
-      data: {
-        name: dto.name,
-        location: dto.location,
-      },
+      data: updateData,
     });
+
+    if (dto.imageUrls) {
+      await this.prisma.venueImage.deleteMany({
+        where: { venueId: id },
+      });
+      if (dto.imageUrls.length > 0) {
+        await this.prisma.venueImage.createMany({
+          data: dto.imageUrls.map((url) => ({
+            url,
+            venueId: id,
+          })),
+        });
+      }
+    }
+
+    return this.findOne(id);
   }
 }

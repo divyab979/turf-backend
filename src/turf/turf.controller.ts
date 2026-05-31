@@ -127,4 +127,18 @@ async uploadImage(
     uploaded.secure_url
   );
 }
+
+@UseGuards(JwtAuthGuard)
+@Post(":turfId/image-url")
+async addImageUrl(
+  @Param("turfId")
+  turfId: string,
+  @Body("url")
+  url: string
+) {
+  return this.turfService.addImage(
+    turfId,
+    url
+  );
+}
 }

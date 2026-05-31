@@ -43,6 +43,24 @@ export class SlotController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post(":turfId/manual")
+  createManualSlot(
+    @Param("turfId")
+    turfId: string,
+
+    @Body()
+    dto: {
+      date: string;
+      startTime: string;
+      endTime: string;
+      price: number;
+      duration: number;
+    }
+  ) {
+    return this.slotService.createManualSlot(turfId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(":turfId")
   findByTurf(
     @Param("turfId")

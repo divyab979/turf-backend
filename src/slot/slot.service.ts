@@ -90,6 +90,30 @@ export class SlotService {
     });
   }
 
+  async createManualSlot(
+    turfId: string,
+    dto: {
+      date: string;
+      startTime: string;
+      endTime: string;
+      price: number;
+      duration: number;
+    }
+  ) {
+    const dateObj = new Date(dto.date);
+    return this.prisma.slot.create({
+      data: {
+        turfId,
+        date: dateObj,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        price: dto.price,
+        duration: dto.duration,
+        status: SlotStatus.AVAILABLE,
+      },
+    });
+  }
+
   findByTurf(
     turfId: string
   ) {
@@ -142,6 +166,11 @@ export class SlotService {
         (lock) =>
           lock.status === "ACTIVE" &&
           new Date(lock.expiresAt) > now
+      ) || slot.bookings.some(
+        (booking) =>
+          booking.status === "PENDING" &&
+          booking.expiresAt &&
+          new Date(booking.expiresAt) > now
       );
 
       return {

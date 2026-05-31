@@ -11,6 +11,8 @@ import { VenueModule } from './venue/venue.module';
 import { TurfModule } from './turf/turf.module';
 import { SlotModule } from './slot/slot.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { PaymentsModule } from './payments/payments.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 
 @Module({
@@ -32,6 +34,10 @@ import { BookingsModule } from './bookings/bookings.module';
     SlotModule,
 
     BookingsModule,
+
+    PaymentsModule,
+
+    ScheduleModule.forRoot(),
   ],
 })
 export class AppModule {}

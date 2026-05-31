@@ -5,9 +5,13 @@ import {
   Get,
   Req,
   UseGuards,
+  Param,
 } from '@nestjs/common'
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { RolesGuard } from '../auth/guards/roles.guard'
+import { Roles } from '../auth/decorators/roles.decorator'
+import { Role } from '@prisma/client'
 
 import { BookingsService } from './bookings.service'
 
@@ -63,4 +67,42 @@ getMyBookings(
     req.user.id,
   );
 }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/request-cash-payment')
+  requestCashPayment(
+    @Param('id') bookingId: string,
+    @Req() req: any,
+  ) {
+    return this.bookingsService.requestCashPayment(bookingId, req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER, Role.MANAGER, Role.SUPER_ADMIN)
+  @Post(':id/confirm-cash-payment')
+  confirmCashPayment(
+    @Param('id') bookingId: string,
+  ) {
+    return this.bookingsService.confirmCashPayment(bookingId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER, Role.MANAGER, Role.SUPER_ADMIN)
+  @Post('custom')
+  createCustomBooking(
+    @Body() dto: {
+      venueId: string;
+      customerName: string;
+      customerPhone?: string;
+      startTime: string;
+      endTime: string;
+      totalAmount: number;
+      gameActivity?: string;
+      paymentMethod?: string;
+      notes?: string;
+    },
+    @Req() req: any,
+  ) {
+    return this.bookingsService.createCustomBooking(dto, req.user.id);
+  }
 }

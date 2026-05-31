@@ -7,6 +7,136 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id          String     @id @default(cuid())
+  name        String
+  email       String     @unique
+  password    String
+  role        Role
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  venueId     String?
+  phone       String?
+  bookings    Booking[]
+  slotLocks   SlotLock[]
+  venue       Venue?     @relation("VenueStaff", fields: [venueId], references: [id])
+  ownedVenues Venue[]
+}
+
+model Venue {
+  id        String    @id @default(cuid())
+  name      String
+  location  String
+  address   String?
+  ownerId   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+  turfs     Turf[]
+  staff     User[]    @relation("VenueStaff")
+  owner     User      @relation(fields: [ownerId], references: [id])
+
+  businessType  String       @default("TURF")
+  bookingMode   String       @default("FIXED_SLOTS")
+  gamesHosted   String[]
+  numPoolTables Int?
+  numSnookerTables Int?
+  numTvScreens  Int?
+  numPsConsoles Int?
+  numControllers Int?
+  description   String?
+  amenities     String[]
+  images        VenueImage[]
+}
+
+model Turf {
+  id          String      @id @default(cuid())
+  name        String
+  venueId     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  sport       SportType
+  description String?
+  isActive    Boolean     @default(true)
+  bookings    Booking[]
+  slots       Slot[]
+  venue       Venue       @relation(fields: [venueId], references: [id])
+  images      TurfImage[]
+}
+
+model Slot {
+  id        String     @id @default(cuid())
+  date      DateTime
+  startTime String
+  endTime   String
+  turfId    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  status    SlotStatus
+  duration  Int
+  price     Int
+  bookings  Booking[]
+  turf      Turf       @relation(fields: [turfId], references: [id])
+  locks     SlotLock[]
+}
+
+model Booking {
+  id                String        @id @default(cuid())
+  customerName      String
+  customerPhone     String
+  slotId            String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  paymentStatus     PaymentStatus
+  advancePaid       Int
+  bookingDate       DateTime
+  status            BookingStatus
+  totalAmount       Int
+  turfId            String?
+  userId            String
+  venueId           String
+  expiresAt         DateTime?
+  paidAt            DateTime?
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  refundedAt        DateTime?
+  refundedBy        String?
+  remainingAmount   Int?
+  cashPaymentRequested Boolean @default(false)
+
+  startTime         String?
+  endTime           String?
+  gameActivity      String?
+  paymentMethod     String?
+  notes             String?
+
+  slot              Slot?         @relation(fields: [slotId], references: [id])
+  turf              Turf?         @relation(fields: [turfId], references: [id])
+  user              User          @relation(fields: [userId], references: [id])
+  venue             Venue         @relation(fields: [venueId], references: [id])
+}
+
+model TurfImage {
+  id        String   @id @default(cuid())
+  url       String
+  turfId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  turf      Turf     @relation(fields: [turfId], references: [id])
+}
+
+model SlotLock {
+  id        String         @id @default(cuid())
+  slotId    String
+  userId    String
+  expiresAt DateTime
+  status    SlotLockStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  slot      Slot           @relation(fields: [slotId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+}
+
 enum Role {
   SUPER_ADMIN
   VENUE_OWNER
@@ -44,156 +174,20 @@ enum BookingStatus {
   CANCELLED
   COMPLETED
   FAILED
-}
-
-model User {
-  id String @id @default(cuid())
-
-  name     String
-  email    String @unique
-  password String
-
-  role Role
-
-  ownedVenues Venue[]
-
-  bookings  Booking[]
-  slotLocks SlotLock[]
-
-  venueId String?
-  venue   Venue? @relation("VenueStaff", fields: [venueId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Venue {
-  id String @id @default(cuid())
-
-  name     String
-  location String
-
-  ownerId String
-
-  owner User @relation(fields: [ownerId], references: [id])
-
-  turfs Turf[]
-
-  bookings Booking[]
-
-  staff User[] @relation("VenueStaff")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Turf {
-  id String @id @default(cuid())
-
-  name        String
-  sport       SportType
-  description String?
-
-  isActive Boolean @default(true)
-
-  venueId String
-
-  venue Venue @relation(fields: [venueId], references: [id])
-
-  images TurfImage[]
-
-  slots Slot[]
-
-  bookings Booking[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Slot {
-  id String @id @default(cuid())
-
-  date DateTime
-
-  startTime String
-  endTime   String
-
-  duration Int
-
-  price Int
-
-  status SlotStatus
-
-  turfId String
-
-  turf Turf @relation(fields: [turfId], references: [id])
-
-  bookings Booking[]
-  locks    SlotLock[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Booking {
-  id String @id @default(cuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  venueId String
-  venue   Venue  @relation(fields: [venueId], references: [id])
-
-  turfId String
-  turf   Turf   @relation(fields: [turfId], references: [id])
-
-  slotId String
-  slot   Slot   @relation(fields: [slotId], references: [id])
-
-  customerName  String
-  customerPhone String
-
-  bookingDate DateTime
-
-  totalAmount Int
-  advancePaid Int
-
-  paymentStatus PaymentStatus
-
-  status BookingStatus
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model TurfImage {
-  id        String   @id @default(cuid())
-  url       String
-  turfId    String
-  turf      Turf     @relation(fields: [turfId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model SlotLock {
-  id String @id @default(cuid())
-
-  slotId String
-  userId String
-
-  expiresAt DateTime
-
-  status SlotLockStatus @default(ACTIVE)
-
-  createdAt DateTime @default(now())
-
-  slot Slot @relation(fields: [slotId], references: [id])
-
-  user User @relation(fields: [userId], references: [id])
+  EXPIRED
 }
 
 enum SlotLockStatus {
   ACTIVE
   EXPIRED
   CONVERTED
+}
+
+model VenueImage {
+  id        String   @id @default(cuid())
+  url       String
+  venueId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
 }
