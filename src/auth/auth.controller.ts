@@ -11,6 +11,7 @@ import { AuthService } from "./auth.service";
 
 import { SignupDto } from "./dto/signup.dto";
 import { LoginDto } from "./dto/login.dto";
+import { GoogleLoginDto } from "./dto/google-login.dto";
 
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 
@@ -37,6 +38,14 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post("google")
+  googleLogin(
+    @Body()
+    dto: GoogleLoginDto
+  ) {
+    return this.authService.googleLogin(dto);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get("me")
   getMe(@Request() req) {
@@ -44,12 +53,12 @@ export class AuthController {
   }
 
   @Post('customer-signup')
-customerSignup(
-  @Body()
-  dto: SignupDto,
-) {
+  customerSignup(
+    @Body()
+    dto: SignupDto,
+  ) {
 
-  return this.authService
-    .customerSignup(dto);
-}
+    return this.authService
+      .customerSignup(dto);
+  }
 }

@@ -50,11 +50,14 @@ export class VenueService {
     return this.findOne(venue.id);
   }
 
-  findAll(user: {
-    id: string;
-    role: string;
-    venueId?: string;
-  }) {
+  findAll(
+    user: {
+      id: string;
+      role: string;
+      venueId?: string;
+    },
+    showAll = false
+  ) {
     const includeOption = {
       owner: true,
       images: true,
@@ -66,6 +69,7 @@ export class VenueService {
     };
 
     if (
+      showAll ||
       user.role === "SUPER_ADMIN" ||
       user.role === "CUSTOMER"
     ) {

@@ -13,6 +13,7 @@ import { SlotModule } from './slot/slot.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { FirebaseModule } from './firebase/firebase.module';
 
 
 @Module({
@@ -38,6 +39,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     PaymentsModule,
 
     ScheduleModule.forRoot(),
+
+    FirebaseModule,
   ],
 })
 export class AppModule {}

@@ -11,16 +11,18 @@ import * as bcrypt from "bcrypt";
 import { SignupDto } from "./dto/signup.dto";
 
 import { LoginDto } from "./dto/login.dto";
+import { GoogleLoginDto } from "./dto/google-login.dto";
 
 import { UsersService } from "../users/users.service";
+import { FirebaseService } from "../firebase/firebase.service";
 
 @Injectable()
 export class AuthService {
 
   constructor(
     private usersService: UsersService,
-
-    private jwtService: JwtService
+    private jwtService: JwtService,
+    private firebaseService: FirebaseService
   ) {}
 
   async signup(dto: SignupDto) {
@@ -95,13 +97,54 @@ export class AuthService {
   });
 
   const { password, ...safeUser } = user;
-
   return {
     access_token: token,
 
     user: safeUser,
   };
 }
+
+async googleLogin(dto: GoogleLoginDto) {
+  try {
+    const decodedToken = await this.firebaseService.verifyIdToken(dto.idToken);
+    const { email, name, picture } = decodedToken;
+
+    if (!email) {
+      throw new BadRequestException("Email is required but was not found in the Google ID Token");
+    }
+
+    let user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      // Create user with CUSTOMER role and dummy password to satisfy Prisma DB constraints
+      const dummyPassword = await bcrypt.hash(Math.random().toString(36), 10);
+      user = await this.usersService.createUser({
+        email,
+        name: name || email.split("@")[0],
+        password: dummyPassword,
+        role: "CUSTOMER",
+      });
+    }
+
+    const token = await this.jwtService.signAsync({
+      sub: user.id,
+      role: user.role,
+      email: user.email,
+      name: user.name,
+      venueId: user.venueId,
+    });
+
+    const { password, ...safeUser } = user;
+
+    return {
+      access_token: token,
+      user: safeUser,
+    };
+  } catch (error) {
+    throw new UnauthorizedException("Google login failed: " + error.message);
+  }
+}
+
 async customerSignup(
   dto: SignupDto,
 ) {

@@ -7,6 +7,7 @@ import {
   UseGuards,
   Patch,
   Param,
+  Query,
 } from "@nestjs/common";
 
 import { VenueService }
@@ -44,10 +45,14 @@ export class VenueController {
   @Get()
   findAll(
     @Request()
-    req
+    req,
+    @Query("all")
+    all?: string
   ) {
+    const showAll = all === "true";
     return this.venueService.findAll(
-      req.user
+      req.user,
+      showAll
     );
   }
 

@@ -299,6 +299,7 @@ export class BookingsService {
         remainingAmount: 0,
         cashPaymentRequested: false,
         paidAt: new Date(),
+        paymentMethod: 'CASH',
       },
     });
   }
