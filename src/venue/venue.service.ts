@@ -39,12 +39,16 @@ export class VenueService {
     });
 
     if (dto.imageUrls && dto.imageUrls.length > 0) {
-      await this.prisma.venueImage.createMany({
-        data: dto.imageUrls.map((url) => ({
-          url,
-          venueId: venue.id,
-        })),
-      });
+      await Promise.all(
+        dto.imageUrls.map((url) =>
+          this.prisma.venueImage.create({
+            data: {
+              url,
+              venueId: venue.id,
+            },
+          })
+        )
+      );
     }
 
     return this.findOne(venue.id);
@@ -117,6 +121,7 @@ export class VenueService {
     id: string,
     dto: Partial<CreateVenueDto>
   ) {
+    console.log("VENUE UPDATE REQUEST RECEIVED - id:", id, "dto:", JSON.stringify(dto, null, 2));
     const updateData: any = {
       name: dto.name,
       location: dto.location,
@@ -150,12 +155,16 @@ export class VenueService {
         where: { venueId: id },
       });
       if (dto.imageUrls.length > 0) {
-        await this.prisma.venueImage.createMany({
-          data: dto.imageUrls.map((url) => ({
-            url,
-            venueId: id,
-          })),
-        });
+        await Promise.all(
+          dto.imageUrls.map((url) =>
+            this.prisma.venueImage.create({
+              data: {
+                url,
+                venueId: id,
+              },
+            })
+          )
+        );
       }
     }
 
