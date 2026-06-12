@@ -17,184 +17,177 @@ export class BookingsService {
     slotId: string,
     userId: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Lock the slot record pessimisticly to prevent race conditions
-      await tx.$queryRawUnsafe(
-        `SELECT * FROM "Slot" WHERE id = $1 FOR UPDATE`,
-        slotId,
-      )
-
-      const now = new Date()
-
-      const existingBooking =
-        await tx.booking.findFirst({
-          where: {
-            slotId,
-
-            status: {
-              in: [
-                'CONFIRMED',
-                'PENDING',
-              ],
-            },
-          },
-        })
-
-      if (existingBooking) {
-        throw new BadRequestException(
-          'Slot already booked',
-        )
-      }
-
-      const activeLock =
-        await tx.slotLock.findFirst({
-          where: {
-            slotId,
-
-            status: 'ACTIVE',
-
-            expiresAt: {
-              gt: now,
-            },
-          },
-        })
-
-      if (activeLock) {
-        throw new BadRequestException(
-          'Slot temporarily locked',
-        )
-      }
-
-      const expiresAt = new Date(
-        now.getTime() +
-          10 * 60 * 1000,
-      )
-
-      return tx.slotLock.create({
-        data: {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1. Lock the slot record pessimistically to prevent race conditions
+        await tx.$queryRawUnsafe(
+          `SELECT * FROM "Slot" WHERE id = $1 FOR UPDATE`,
           slotId,
+        )
 
-          userId,
+        const now = new Date()
 
-          expiresAt,
-        },
+        const existingBooking =
+          await tx.booking.findFirst({
+            where: {
+              slotId,
+              status: {
+                in: [
+                  'CONFIRMED',
+                  'PENDING',
+                ],
+              },
+            },
+          })
+
+        if (existingBooking) {
+          throw new BadRequestException(
+            'Slot already booked',
+          )
+        }
+
+        const activeLock =
+          await tx.slotLock.findFirst({
+            where: {
+              slotId,
+              status: 'ACTIVE',
+              expiresAt: {
+                gt: now,
+              },
+            },
+          })
+
+        if (activeLock) {
+          throw new BadRequestException(
+            'Slot temporarily locked',
+          )
+        }
+
+        const expiresAt = new Date(
+          now.getTime() +
+            10 * 60 * 1000,
+        )
+
+        return tx.slotLock.create({
+          data: {
+            slotId,
+            userId,
+            expiresAt,
+          },
+        })
       })
-    })
+    } catch (error: any) {
+      if (error instanceof BadRequestException) throw error
+      console.error('lockSlot error:', error)
+      throw new BadRequestException(
+        error?.message || 'Failed to lock slot',
+      )
+    }
   }
 
   async confirmBooking(
     slotId: string,
     userId: string,
   ) {
-    const now = new Date()
+    try {
+      const now = new Date()
 
-    const lock =
-      await this.prisma.slotLock.findFirst({
-        where: {
-          slotId,
-
-          userId,
-
-          status: 'ACTIVE',
-
-          expiresAt: {
-            gt: now,
-          },
-        },
-      })
-
-    if (!lock) {
-      throw new BadRequestException(
-        'Lock expired',
-      )
-    }
-
-    const slot =
-      await this.prisma.slot.findUnique({
-        where: {
-          id: slotId,
-        },
-
-        include: {
-          turf: {
-            include: {
-              venue: true,
+      const lock =
+        await this.prisma.slotLock.findFirst({
+          where: {
+            slotId,
+            userId,
+            status: 'ACTIVE',
+            expiresAt: {
+              gt: now,
             },
           },
+        })
+
+      if (!lock) {
+        throw new BadRequestException(
+          'Lock expired or not found — please try selecting the slot again',
+        )
+      }
+
+      const slot =
+        await this.prisma.slot.findUnique({
+          where: {
+            id: slotId,
+          },
+          include: {
+            turf: {
+              include: {
+                venue: true,
+              },
+            },
+          },
+        })
+
+      if (!slot) {
+        throw new BadRequestException(
+          'Slot not found',
+        )
+      }
+
+      // Check if slot is already booked by a confirmed/pending booking
+      const existingBooking = await this.prisma.booking.findFirst({
+        where: {
+          slotId,
+          status: {
+            in: ['CONFIRMED', 'PENDING'],
+          },
         },
       })
 
-    if (!slot) {
+      if (existingBooking) {
+        throw new BadRequestException('Slot is already booked')
+      }
+
+      const userProfile =
+        await this.prisma.user.findUnique({
+          where: {
+            id: userId,
+          },
+        })
+
+      const advancePaid = Math.floor(slot.price * 0.25)
+
+      const booking = await this.prisma.booking.create({
+        data: {
+          userId,
+          venueId: slot.turf.venue.id,
+          turfId: slot.turf.id,
+          slotId: slot.id,
+          customerName: userProfile?.name || 'Temp User',
+          customerPhone: userProfile?.phone || '9999999999',
+          bookingDate: slot.date,
+          totalAmount: slot.price,
+          advancePaid,
+          remainingAmount: slot.price - advancePaid,
+          paymentStatus: 'PENDING',
+          status: 'PENDING',
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        },
+      })
+
+      await this.prisma.slotLock.update({
+        where: {
+          id: lock.id,
+        },
+        data: {
+          status: 'CONVERTED',
+        },
+      })
+
+      return booking
+    } catch (error: any) {
+      if (error instanceof BadRequestException) throw error
+      console.error('confirmBooking error:', error)
       throw new BadRequestException(
-        'Slot not found',
+        error?.message || 'Failed to confirm booking',
       )
     }
-
-    const userProfile =
-      await this.prisma.user.findUnique({
-        where: {
-          id: userId,
-        },
-      })
-
-    const advancePaid =
-      Math.floor(
-        slot.price * 0.25,
-      )
-
-  const booking =
-  await this.prisma.booking.create({
-    data: {
-      userId,
-
-      venueId:
-        slot.turf.venue.id,
-
-      turfId: slot.turf.id,
-
-      slotId: slot.id,
-
-      customerName:
-        userProfile?.name ||
-        'Temp User',
-
-      customerPhone:
-        '9999999999',
-
-      bookingDate:
-        slot.date,
-
-      totalAmount:
-        slot.price,
-
-      advancePaid,
-
-      remainingAmount:
-        slot.price - advancePaid,
-
-      paymentStatus:
-        'PENDING',
-
-      status: 'PENDING',
-
-      expiresAt: new Date(
-        Date.now() +
-          10 * 60 * 1000,
-      ),
-    },
-  })
-
-    await this.prisma.slotLock.update({
-      where: {
-        id: lock.id,
-      },
-
-      data: {
-        status: 'CONVERTED',
-      },
-    })
-
-    return booking
   }
 
   async getMyBookings(
