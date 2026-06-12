@@ -137,4 +137,72 @@ export class TurfService {
       },
     });
   }
+
+  async createMaintenanceIssue(
+    dto: {
+      turfId: string;
+      issue: string;
+      severity: string;
+      supervisor?: string;
+    }
+  ) {
+    const turf = await this.prisma.turf.findUnique({
+      where: { id: dto.turfId },
+    });
+    if (!turf) {
+      throw new Error("Turf not found");
+    }
+
+    return this.prisma.maintenanceIssue.create({
+      data: {
+        turfId: dto.turfId,
+        venueId: turf.venueId,
+        issue: dto.issue,
+        severity: dto.severity || "Low",
+        supervisor: dto.supervisor || "Staff",
+        status: "Open",
+      },
+      include: {
+        turf: true,
+      },
+    });
+  }
+
+  async getMaintenanceIssuesByVenue(venueId: string) {
+    return this.prisma.maintenanceIssue.findMany({
+      where: {
+        venueId,
+      },
+      include: {
+        turf: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async getMaintenanceIssuesByOwner(ownerId: string) {
+    return this.prisma.maintenanceIssue.findMany({
+      where: {
+        venue: {
+          ownerId,
+        },
+      },
+      include: {
+        turf: true,
+        venue: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async updateMaintenanceIssueStatus(id: string, status: string) {
+    return this.prisma.maintenanceIssue.update({
+      where: { id },
+      data: { status },
+    });
+  }
 }

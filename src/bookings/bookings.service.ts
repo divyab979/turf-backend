@@ -323,6 +323,8 @@ export class BookingsService {
       gameActivity?: string;
       paymentMethod?: string;
       notes?: string;
+      turfId?: string;
+      slotId?: string;
     },
     userId: string
   ) {
@@ -351,6 +353,8 @@ export class BookingsService {
         gameActivity: dto.gameActivity || 'SNOOKER',
         paymentMethod: dto.paymentMethod || 'CASH',
         notes: dto.notes,
+        turfId: dto.turfId,
+        slotId: dto.slotId,
       },
     });
   }

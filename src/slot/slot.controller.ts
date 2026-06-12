@@ -79,4 +79,12 @@ export class SlotController {
   ) {
     return this.slotService.findAll(courtId, date);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/toggle-block")
+  toggleBlock(
+    @Param("id") id: string
+  ) {
+    return this.slotService.toggleBlock(id);
+  }
 }

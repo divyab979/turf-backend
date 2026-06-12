@@ -35,6 +35,7 @@ model Venue {
   turfs     Turf[]
   staff     User[]    @relation("VenueStaff")
   owner     User      @relation(fields: [ownerId], references: [id])
+  maintenanceIssues MaintenanceIssue[]
 
   businessType  String       @default("TURF")
   bookingMode   String       @default("FIXED_SLOTS")
@@ -62,6 +63,7 @@ model Turf {
   slots       Slot[]
   venue       Venue       @relation(fields: [venueId], references: [id])
   images      TurfImage[]
+  maintenanceIssues MaintenanceIssue[]
 }
 
 model Slot {
@@ -190,4 +192,19 @@ model VenueImage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+}
+
+model MaintenanceIssue {
+  id         String   @id @default(cuid())
+  turfId     String
+  venueId    String
+  issue      String
+  severity   String   @default("Low")
+  status     String   @default("Open")
+  supervisor String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  turf  Turf  @relation(fields: [turfId], references: [id])
+  venue Venue @relation(fields: [venueId], references: [id])
 }

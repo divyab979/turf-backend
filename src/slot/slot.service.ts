@@ -1,5 +1,7 @@
 import {
   Injectable,
+  BadRequestException,
+  NotFoundException,
 } from "@nestjs/common";
 
 import {
@@ -185,6 +187,40 @@ export class SlotService {
         isBooked,
         isLocked,
       };
+    });
+  }
+
+  async toggleBlock(id: string) {
+    const slot = await this.prisma.slot.findUnique({
+      where: { id },
+    });
+
+    if (!slot) {
+      throw new NotFoundException("Slot not found");
+    }
+
+    const nextStatus = slot.status === SlotStatus.AVAILABLE ? SlotStatus.BLOCKED : SlotStatus.AVAILABLE;
+
+    if (nextStatus === SlotStatus.BLOCKED) {
+      const hasActiveBooking = await this.prisma.booking.findFirst({
+        where: {
+          slotId: id,
+          status: {
+            in: ["CONFIRMED", "PENDING"],
+          },
+        },
+      });
+
+      if (hasActiveBooking) {
+        throw new BadRequestException("Cannot block a slot that has active bookings");
+      }
+    }
+
+    return this.prisma.slot.update({
+      where: { id },
+      data: {
+        status: nextStatus,
+      },
     });
   }
 }

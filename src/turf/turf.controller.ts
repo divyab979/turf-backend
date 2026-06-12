@@ -5,7 +5,9 @@ import {
   Param,
   Post,
   UseGuards,
-  Query
+  Query,
+  Req,
+  Patch
 } from "@nestjs/common";
 
 import {
@@ -141,4 +143,41 @@ async addImageUrl(
     url
   );
 }
+
+@UseGuards(JwtAuthGuard)
+@Post("maintenance")
+async createMaintenance(
+  @Body()
+  dto: {
+    turfId: string;
+    issue: string;
+    severity: string;
+    supervisor?: string;
+  }
+) {
+  return this.turfService.createMaintenanceIssue(dto);
+}
+
+  @UseGuards(JwtAuthGuard)
+  @Get("maintenance/list")
+  async getMaintenance(
+    @Req() req: any
+  ) {
+    const user = req.user;
+    if (user.role === "VENUE_OWNER") {
+      return this.turfService.getMaintenanceIssuesByOwner(user.id);
+    } else {
+      const venueId = user.venueId || "none";
+      return this.turfService.getMaintenanceIssuesByVenue(venueId);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("maintenance/:id/status")
+  async updateMaintenanceStatus(
+    @Param("id") id: string,
+    @Body("status") status: string
+  ) {
+    return this.turfService.updateMaintenanceIssueStatus(id, status);
+  }
 }

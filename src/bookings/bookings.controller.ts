@@ -100,6 +100,8 @@ getMyBookings(
       gameActivity?: string;
       paymentMethod?: string;
       notes?: string;
+      turfId?: string;
+      slotId?: string;
     },
     @Req() req: any,
   ) {

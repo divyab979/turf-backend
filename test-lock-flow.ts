@@ -7,7 +7,8 @@ async function run() {
     const signupData = {
       email: "testlock@example.com",
       password: "Password123!",
-      name: "Test Lock User"
+      name: "Test Lock User",
+      role: "CUSTOMER"
     };
 
     console.log("1. Creating/Ensuring test user account...");
