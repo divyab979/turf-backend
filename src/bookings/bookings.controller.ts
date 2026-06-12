@@ -105,4 +105,12 @@ getMyBookings(
   ) {
     return this.bookingsService.createCustomBooking(dto, req.user.id);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/complete')
+  markAsCompleted(
+    @Param('id') bookingId: string,
+  ) {
+    return this.bookingsService.markAsCompleted(bookingId);
+  }
 }

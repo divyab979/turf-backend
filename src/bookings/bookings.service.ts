@@ -17,60 +17,68 @@ export class BookingsService {
     slotId: string,
     userId: string,
   ) {
-    const now = new Date()
-
-    const existingBooking =
-      await this.prisma.booking.findFirst({
-        where: {
-          slotId,
-
-          status: {
-            in: [
-              'CONFIRMED',
-              'PENDING',
-            ],
-          },
-        },
-      })
-
-    if (existingBooking) {
-      throw new BadRequestException(
-        'Slot already booked',
-      )
-    }
-
-    const activeLock =
-      await this.prisma.slotLock.findFirst({
-        where: {
-          slotId,
-
-          status: 'ACTIVE',
-
-          expiresAt: {
-            gt: now,
-          },
-        },
-      })
-
-    if (activeLock) {
-      throw new BadRequestException(
-        'Slot temporarily locked',
-      )
-    }
-
-    const expiresAt = new Date(
-      now.getTime() +
-        10 * 60 * 1000,
-    )
-
-    return this.prisma.slotLock.create({
-      data: {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Lock the slot record pessimisticly to prevent race conditions
+      await tx.$queryRawUnsafe(
+        `SELECT * FROM "Slot" WHERE id = $1 FOR UPDATE`,
         slotId,
+      )
 
-        userId,
+      const now = new Date()
 
-        expiresAt,
-      },
+      const existingBooking =
+        await tx.booking.findFirst({
+          where: {
+            slotId,
+
+            status: {
+              in: [
+                'CONFIRMED',
+                'PENDING',
+              ],
+            },
+          },
+        })
+
+      if (existingBooking) {
+        throw new BadRequestException(
+          'Slot already booked',
+        )
+      }
+
+      const activeLock =
+        await tx.slotLock.findFirst({
+          where: {
+            slotId,
+
+            status: 'ACTIVE',
+
+            expiresAt: {
+              gt: now,
+            },
+          },
+        })
+
+      if (activeLock) {
+        throw new BadRequestException(
+          'Slot temporarily locked',
+        )
+      }
+
+      const expiresAt = new Date(
+        now.getTime() +
+          10 * 60 * 1000,
+      )
+
+      return tx.slotLock.create({
+        data: {
+          slotId,
+
+          userId,
+
+          expiresAt,
+        },
+      })
     })
   }
 
@@ -372,5 +380,22 @@ export class BookingsService {
         },
       });
     }
+  }
+
+  async markAsCompleted(id: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+    });
+
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+
+    return this.prisma.booking.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+      },
+    });
   }
 }
