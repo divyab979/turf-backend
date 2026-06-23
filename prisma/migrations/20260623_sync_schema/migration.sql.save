@@ -1,0 +1,31 @@
+ALTER TABLE "User"
+ADD COLUMN IF NOT EXISTS "isSuspended" BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS "MaintenanceIssue" (
+    "id" TEXT NOT NULL,
+    "turfId" TEXT NOT NULL,
+    "venueId" TEXT NOT NULL,
+    "issue" TEXT NOT NULL,
+    "severity" TEXT NOT NULL DEFAULT 'Low',
+    "status" TEXT NOT NULL DEFAULT 'Open',
+    "supervisor" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MaintenanceIssue_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "MaintenanceIssue"
+ADD CONSTRAINT "MaintenanceIssue_turfId_fkey"
+FOREIGN KEY ("turfId")
+REFERENCES "Turf"("id")
+ON DELETE RESTRICT
+ON UPDATE CASCADE;
+
+ALTER TABLE "MaintenanceIssue"
+ADD CONSTRAINT "MaintenanceIssue_venueId_fkey"
+FOREIGN KEY ("venueId")
+REFERENCES "Venue"("id")
+ON DELETE RESTRICT
+ON UPDATE CASCADE;
+
