@@ -17,6 +17,7 @@ model User {
   updatedAt   DateTime   @updatedAt
   venueId     String?
   phone       String?
+  isSuspended Boolean    @default(false)
   bookings    Booking[]
   slotLocks   SlotLock[]
   venue       Venue?     @relation("VenueStaff", fields: [venueId], references: [id])

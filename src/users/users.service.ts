@@ -77,4 +77,19 @@ export class UsersService {
       },
     });
   }
+
+  async toggleOwnerStatus(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+    if (!user) {
+      throw new Error("Owner not found");
+    }
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        isSuspended: !user.isSuspended,
+      },
+    });
+  }
 }

@@ -68,4 +68,10 @@ export class UsersController {
       count: result.count,
     };
   }
+
+  @Post("owners/:id/toggle-status")
+  @Roles(Role.SUPER_ADMIN)
+  async toggleOwnerStatus(@Param("id") id: string) {
+    return this.usersService.toggleOwnerStatus(id);
+  }
 }

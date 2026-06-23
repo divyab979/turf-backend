@@ -63,6 +63,21 @@ export class BookingsService {
           )
         }
 
+        // Verify the user exists in our DB before creating the lock.
+        // If the client is sending a raw Firebase ID token instead of the
+        // backend-issued JWT, payload.sub will be a Firebase UID that has no
+        // matching User row, causing a P2003 FK violation.
+        const userExists = await tx.user.findUnique({
+          where: { id: userId },
+          select: { id: true },
+        })
+
+        if (!userExists) {
+          throw new BadRequestException(
+            'User account not found. Please log out and log in again.',
+          )
+        }
+
         const expiresAt = new Date(
           now.getTime() +
             10 * 60 * 1000,
@@ -329,6 +344,12 @@ export class BookingsService {
       throw new BadRequestException('Venue not found');
     }
 
+    const creator = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const isSuperAdmin = creator?.role === 'SUPER_ADMIN';
+
     return this.prisma.booking.create({
       data: {
         userId,
@@ -338,16 +359,17 @@ export class BookingsService {
         startTime: dto.startTime,
         endTime: dto.endTime,
         totalAmount: Number(dto.totalAmount),
-        advancePaid: Number(dto.totalAmount),
-        remainingAmount: 0,
-        paymentStatus: 'PAID',
-        status: 'CONFIRMED',
+        advancePaid: isSuperAdmin ? 0 : Number(dto.totalAmount),
+        remainingAmount: isSuperAdmin ? Number(dto.totalAmount) : 0,
+        paymentStatus: isSuperAdmin ? 'PENDING' : 'PAID',
+        status: isSuperAdmin ? 'PENDING' : 'CONFIRMED',
         bookingDate: new Date(),
         gameActivity: dto.gameActivity || 'SNOOKER',
         paymentMethod: dto.paymentMethod || 'CASH',
         notes: dto.notes,
         turfId: dto.turfId,
         slotId: dto.slotId,
+        cashPaymentRequested: isSuperAdmin,
       },
     });
   }

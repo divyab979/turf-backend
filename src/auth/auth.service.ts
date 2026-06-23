@@ -71,6 +71,12 @@ export class AuthService {
     );
   }
 
+  if (user.isSuspended) {
+    throw new UnauthorizedException(
+      "Your account is suspended. Please contact support."
+    );
+  }
+
   const passwordMatch =
     await bcrypt.compare(
       dto.password,
@@ -124,6 +130,12 @@ async googleLogin(dto: GoogleLoginDto) {
         password: dummyPassword,
         role: "CUSTOMER",
       });
+    }
+
+    if (user.isSuspended) {
+      throw new UnauthorizedException(
+        "Your account is suspended. Please contact support."
+      );
     }
 
     const token = await this.jwtService.signAsync({
