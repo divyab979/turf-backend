@@ -169,15 +169,14 @@ enum SportType {
   BADMINTON
   TENNIS
   PICKLEBALL
+  SNOOKER
+  POOL
 }
 
 enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
-  COMPLETED
-  FAILED
-  EXPIRED
 }
 
 enum SlotLockStatus {

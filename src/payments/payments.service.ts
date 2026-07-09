@@ -32,11 +32,15 @@ export class PaymentsService {
 
   async createOrder(amount: number) {
     try {
-      return await this.razorpay.orders.create({
+      const order = await this.razorpay.orders.create({
         amount: Math.round(amount * 100),
         currency: 'INR',
         receipt: `receipt_${Date.now()}`,
       });
+      return {
+        ...order,
+        key: this.configService.get<string>('RAZORPAY_KEY_ID')!,
+      };
     } catch (error: any) {
       console.error('Error creating Razorpay order:', error);
       throw new BadRequestException(
@@ -112,7 +116,7 @@ export class PaymentsService {
         id: dto.bookingId,
       },
       data: {
-        status: 'CONFIRMED',
+        status: nextPaymentStatus === 'PAID' ? 'CONFIRMED' : 'PENDING',
         paymentStatus: nextPaymentStatus,
         remainingAmount: nextRemainingAmount,
         cashPaymentRequested: shouldRequestCash,

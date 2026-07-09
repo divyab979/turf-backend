@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Req,
+  Res,
   BadRequestException,
 } from "@nestjs/common";
 import { UsersService } from "./users.service";
@@ -73,5 +74,28 @@ export class UsersController {
   @Roles(Role.SUPER_ADMIN)
   async toggleOwnerStatus(@Param("id") id: string) {
     return this.usersService.toggleOwnerStatus(id);
+  }
+
+  @Get("export/csv")
+  @Roles(Role.VENUE_OWNER, Role.SUPER_ADMIN)
+  async exportCustomersCsv(@Req() req: any, @Res() res: any) {
+    const customers = await this.usersService.getCustomersDataForExport(req.user);
+
+    const headers = ["Customer ID", "Name", "Email", "Phone", "Bookings Count", "Total Spent (INR)", "Preferred Sport"];
+    const rows = customers.map((c) => [
+      c.id,
+      `"${c.name.replace(/"/g, '""')}"`,
+      c.email,
+      c.phone,
+      c.bookingsCount,
+      c.totalSpent,
+      c.preference,
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=customers_export.csv");
+    res.status(200).send(csvContent);
   }
 }

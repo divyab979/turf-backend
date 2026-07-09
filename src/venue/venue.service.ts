@@ -38,9 +38,10 @@ export class VenueService {
       },
     });
 
-    if (dto.imageUrls && dto.imageUrls.length > 0) {
+    const urls = dto.imageUrls || dto.photos;
+    if (urls && urls.length > 0) {
       await Promise.all(
-        dto.imageUrls.map((url) =>
+        urls.map((url) =>
           this.prisma.venueImage.create({
             data: {
               url,
@@ -54,7 +55,7 @@ export class VenueService {
     return this.findOne(venue.id);
   }
 
-  findAll(
+  async findAll(
     user: {
       id: string;
       role: string;
@@ -68,39 +69,41 @@ export class VenueService {
       turfs: {
         include: {
           images: true,
+          slots: true,
         },
       },
     };
 
+    let venues: any[] = [];
     if (
       showAll ||
       user.role === "SUPER_ADMIN" ||
       user.role === "CUSTOMER"
     ) {
-      return this.prisma.venue.findMany({
+      venues = await this.prisma.venue.findMany({
         include: includeOption,
       });
-    }
-
-    if (user.role === "MANAGER") {
-      return this.prisma.venue.findMany({
+    } else if (user.role === "MANAGER") {
+      venues = await this.prisma.venue.findMany({
         where: {
           id: user.venueId || "none",
         },
         include: includeOption,
       });
+    } else {
+      venues = await this.prisma.venue.findMany({
+        where: {
+          ownerId: user.id,
+        },
+        include: includeOption,
+      });
     }
 
-    return this.prisma.venue.findMany({
-      where: {
-        ownerId: user.id,
-      },
-      include: includeOption,
-    });
+    return venues.map(venue => this.mapVenueResponse(venue));
   }
 
-  findOne(id: string) {
-    return this.prisma.venue.findUnique({
+  async findOne(id: string) {
+    const venue = await this.prisma.venue.findUnique({
       where: {
         id,
       },
@@ -115,6 +118,24 @@ export class VenueService {
         },
       },
     });
+    return this.mapVenueResponse(venue);
+  }
+
+  private mapVenueResponse(venue: any) {
+    if (!venue) return null;
+    const imageUrls = venue.images?.map((img: any) => img.url) || [];
+    const mappedTurfs = venue.turfs?.map((turf: any) => ({
+      ...turf,
+      basePrice: turf.slots?.[0]?.price || 800,
+      images: turf.images
+    })) || [];
+    return {
+      ...venue,
+      photos: imageUrls,
+      images: imageUrls, // array of string URLs for mobile app compatibility
+      courts: mappedTurfs, // alias for mobile app
+      turfs: mappedTurfs,
+    };
   }
 
   async update(
@@ -150,13 +171,14 @@ export class VenueService {
       data: updateData,
     });
 
-    if (dto.imageUrls) {
+    const urls = dto.imageUrls || dto.photos;
+    if (urls) {
       await this.prisma.venueImage.deleteMany({
         where: { venueId: id },
       });
-      if (dto.imageUrls.length > 0) {
+      if (urls.length > 0) {
         await Promise.all(
-          dto.imageUrls.map((url) =>
+          urls.map((url) =>
             this.prisma.venueImage.create({
               data: {
                 url,

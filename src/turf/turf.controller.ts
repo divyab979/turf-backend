@@ -21,6 +21,9 @@ import {
 import {
   CreateTurfDto,
 } from "./dto/create-turf.dto";
+import {
+  CreateMaintenanceDto,
+} from "./dto/create-maintenance.dto";
 
 import {
   UploadedFile,
@@ -148,12 +151,7 @@ async addImageUrl(
 @Post("maintenance")
 async createMaintenance(
   @Body()
-  dto: {
-    turfId: string;
-    issue: string;
-    severity: string;
-    supervisor?: string;
-  }
+  dto: CreateMaintenanceDto
 ) {
   return this.turfService.createMaintenanceIssue(dto);
 }

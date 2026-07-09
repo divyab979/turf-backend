@@ -328,6 +328,7 @@ export class BookingsService {
       startTime: string;
       endTime: string;
       totalAmount: number;
+      advancePaid?: number;
       gameActivity?: string;
       paymentMethod?: string;
       notes?: string;
@@ -350,6 +351,20 @@ export class BookingsService {
 
     const isSuperAdmin = creator?.role === 'SUPER_ADMIN';
 
+    const total = Number(dto.totalAmount);
+    const defaultAdvance = isSuperAdmin ? 0 : total;
+    const advance = dto.advancePaid !== undefined ? Number(dto.advancePaid) : defaultAdvance;
+    const remaining = Math.max(0, total - advance);
+
+    let paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
+    if (advance >= total) {
+      paymentStatus = 'PAID';
+    } else if (advance > 0) {
+      paymentStatus = 'PARTIAL';
+    }
+
+    const bookingStatus = remaining === 0 ? 'CONFIRMED' : 'PENDING';
+
     return this.prisma.booking.create({
       data: {
         userId,
@@ -358,18 +373,18 @@ export class BookingsService {
         customerPhone: dto.customerPhone || '9999999999',
         startTime: dto.startTime,
         endTime: dto.endTime,
-        totalAmount: Number(dto.totalAmount),
-        advancePaid: isSuperAdmin ? 0 : Number(dto.totalAmount),
-        remainingAmount: isSuperAdmin ? Number(dto.totalAmount) : 0,
-        paymentStatus: isSuperAdmin ? 'PENDING' : 'PAID',
-        status: isSuperAdmin ? 'PENDING' : 'CONFIRMED',
+        totalAmount: total,
+        advancePaid: advance,
+        remainingAmount: remaining,
+        paymentStatus,
+        status: bookingStatus,
         bookingDate: new Date(),
         gameActivity: dto.gameActivity || 'SNOOKER',
         paymentMethod: dto.paymentMethod || 'CASH',
         notes: dto.notes,
         turfId: dto.turfId,
         slotId: dto.slotId,
-        cashPaymentRequested: isSuperAdmin,
+        cashPaymentRequested: isSuperAdmin && advance < total,
       },
     });
   }
@@ -395,7 +410,7 @@ export class BookingsService {
           },
         },
         data: {
-          status: 'EXPIRED',
+          status: 'CANCELLED',
         },
       });
     }
@@ -413,7 +428,7 @@ export class BookingsService {
     return this.prisma.booking.update({
       where: { id },
       data: {
-        status: 'COMPLETED',
+        status: 'CONFIRMED',
       },
     });
   }
