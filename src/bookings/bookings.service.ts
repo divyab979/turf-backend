@@ -57,12 +57,6 @@ export class BookingsService {
             },
           })
 
-        if (activeLock) {
-          throw new BadRequestException(
-            'Slot temporarily locked',
-          )
-        }
-
         // Verify the user exists in our DB before creating the lock.
         // If the client is sending a raw Firebase ID token instead of the
         // backend-issued JWT, payload.sub will be a Firebase UID that has no
@@ -80,8 +74,20 @@ export class BookingsService {
 
         const expiresAt = new Date(
           now.getTime() +
-            10 * 60 * 1000,
+            5 * 60 * 1000,
         )
+
+        if (activeLock) {
+          if (activeLock.userId !== userId) {
+            throw new BadRequestException(
+              'Slot temporarily locked by another user',
+            )
+          }
+          return tx.slotLock.update({
+            where: { id: activeLock.id },
+            data: { expiresAt },
+          })
+        }
 
         return tx.slotLock.create({
           data: {
@@ -182,7 +188,7 @@ export class BookingsService {
           remainingAmount: slot.price - advancePaid,
           paymentStatus: 'PENDING',
           status: 'PENDING',
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000),
         },
       })
 

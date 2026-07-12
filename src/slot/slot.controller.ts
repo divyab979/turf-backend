@@ -6,6 +6,7 @@ import {
   Post,
   UseGuards,
   Query,
+  Req,
 } from "@nestjs/common";
 
 import {
@@ -76,8 +77,10 @@ export class SlotController {
   findAll(
     @Query("courtId") courtId?: string,
     @Query("date") date?: string,
+    @Req() req?: any,
   ) {
-    return this.slotService.findAll(courtId, date);
+    const userId = req?.user?.id;
+    return this.slotService.findAll(courtId, date, userId);
   }
 
   @UseGuards(JwtAuthGuard)

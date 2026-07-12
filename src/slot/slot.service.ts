@@ -134,7 +134,7 @@ export class SlotService {
     });
   }
 
-  async findAll(courtId?: string, date?: string) {
+  async findAll(courtId?: string, date?: string, userId?: string) {
     const startOfDay = date ? new Date(date + "T00:00:00") : undefined;
     const endOfDay = date ? new Date(date + "T23:59:59") : undefined;
 
@@ -167,12 +167,14 @@ export class SlotService {
       const isLocked = slot.locks.some(
         (lock) =>
           lock.status === "ACTIVE" &&
-          new Date(lock.expiresAt) > now
+          new Date(lock.expiresAt) > now &&
+          lock.userId !== userId
       ) || slot.bookings.some(
         (booking) =>
           booking.status === "PENDING" &&
           booking.expiresAt &&
-          new Date(booking.expiresAt) > now
+          new Date(booking.expiresAt) > now &&
+          booking.userId !== userId
       );
 
       return {
