@@ -116,12 +116,16 @@ export class SlotService {
     });
   }
 
-  findByTurf(
+  async findByTurf(
     turfId: string
   ) {
-    return this.prisma.slot.findMany({
+    const slots = await this.prisma.slot.findMany({
       where: {
         turfId,
+      },
+      include: {
+        bookings: true,
+        locks: true,
       },
       orderBy: [
         {
@@ -131,6 +135,34 @@ export class SlotService {
           startTime: "asc",
         },
       ],
+    });
+
+    const now = new Date();
+
+    return slots.map((slot) => {
+      const isBooked =
+        slot.status === SlotStatus.BOOKED ||
+        slot.bookings.some(
+          (b) => b.status === "CONFIRMED" || b.status === "PENDING"
+        );
+
+      const isLocked =
+        slot.locks.some(
+          (lock) => lock.status === "ACTIVE" && new Date(lock.expiresAt) > now
+        );
+
+      const computedStatus = isBooked
+        ? SlotStatus.BOOKED
+        : isLocked
+        ? ("LOCKED" as any)
+        : slot.status;
+
+      return {
+        ...slot,
+        status: computedStatus,
+        isBooked,
+        isLocked,
+      };
     });
   }
 
@@ -160,22 +192,32 @@ export class SlotService {
     const now = new Date();
 
     return slots.map((slot) => {
-      const isBooked = slot.bookings.some(
-        (booking) => booking.status === "CONFIRMED"
-      );
+      const isBooked =
+        slot.status === SlotStatus.BOOKED ||
+        slot.bookings.some(
+          (b) => b.status === "CONFIRMED" || b.status === "PENDING"
+        );
 
-      const isLocked = slot.locks.some(
-        (lock) =>
-          lock.status === "ACTIVE" &&
-          new Date(lock.expiresAt) > now &&
-          lock.userId !== userId
-      ) || slot.bookings.some(
-        (booking) =>
-          booking.status === "PENDING" &&
-          booking.expiresAt &&
-          new Date(booking.expiresAt) > now &&
-          booking.userId !== userId
-      );
+      const isLocked =
+        slot.locks.some(
+          (lock) =>
+            lock.status === "ACTIVE" &&
+            new Date(lock.expiresAt) > now &&
+            lock.userId !== userId
+        ) ||
+        slot.bookings.some(
+          (booking) =>
+            booking.status === "PENDING" &&
+            booking.expiresAt &&
+            new Date(booking.expiresAt) > now &&
+            booking.userId !== userId
+        );
+
+      const computedStatus = isBooked
+        ? SlotStatus.BOOKED
+        : isLocked
+        ? ("LOCKED" as any)
+        : slot.status;
 
       return {
         id: slot.id,
@@ -185,7 +227,7 @@ export class SlotService {
         endTime: slot.endTime,
         duration: slot.duration,
         price: slot.price,
-        status: slot.status,
+        status: computedStatus,
         isBooked,
         isLocked,
       };

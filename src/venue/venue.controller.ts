@@ -6,9 +6,12 @@ import {
   Request,
   UseGuards,
   Patch,
+  Delete,
   Param,
   Query,
+  BadRequestException,
 } from "@nestjs/common";
+import * as fs from "fs";
 
 import { VenueService }
   from "./venue.service";
@@ -50,20 +53,17 @@ export class VenueController {
       {
         storage:
           diskStorage({
-            destination:
-              "./uploads",
-
-            filename:
-              (
-                req,
-                file,
-                cb
-              ) => {
-                cb(
-                  null,
-                  `${Date.now()}-${file.originalname}`
-                );
-              },
+            destination: (req, file, cb) => {
+              const uploadDir = "./uploads";
+              if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+              }
+              cb(null, uploadDir);
+            },
+            filename: (req, file, cb) => {
+              const safeName = file.originalname.replace(/\s+/g, "_");
+              cb(null, `${Date.now()}-${safeName}`);
+            },
           }),
       }
     )
@@ -72,18 +72,39 @@ export class VenueController {
     @UploadedFile()
     file: Express.Multer.File
   ) {
-    const uploaded =
-      await cloudinary.uploader.upload(
+    if (!file) {
+      throw new BadRequestException("No image file provided");
+    }
+
+    try {
+      const uploaded = await cloudinary.uploader.upload(
         file.path,
         {
-          folder:
-            "gameup11/venues",
+          folder: "gameup11/venues",
         }
       );
 
-    return {
-      url: uploaded.secure_url,
-    };
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+
+      return {
+        url: uploaded.secure_url,
+      };
+    } catch (error) {
+      console.error("Cloudinary upload failed, falling back to base64 data URL:", error);
+      const fileBuffer = fs.readFileSync(file.path);
+      const mimeType = file.mimetype || "image/jpeg";
+      const base64Data = `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+
+      return {
+        url: base64Data,
+      };
+    }
   }
 
   @UseGuards(JwtAuthGuard)
@@ -135,5 +156,11 @@ export class VenueController {
     dto: Partial<CreateVenueDto>
   ) {
     return this.venueService.update(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(":id")
+  remove(@Param("id") id: string, @Request() req: any) {
+    return this.venueService.remove(id, req.user);
   }
 }

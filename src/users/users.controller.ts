@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -35,7 +36,7 @@ export class UsersController {
   }
 
   @Post("staff")
-  @Roles(Role.VENUE_OWNER)
+  @Roles(Role.VENUE_OWNER, Role.SUPER_ADMIN)
   async createStaff(@Req() req: any, @Body() body: any) {
     const { name, email, password, venueId } = body;
     if (!name || !email || !password || !venueId) {
@@ -44,7 +45,27 @@ export class UsersController {
 
     const existingUser = await this.usersService.findByEmail(email);
     if (existingUser) {
-      throw new BadRequestException("User with this email already exists");
+      if (
+        existingUser.role === Role.MANAGER ||
+        existingUser.role === Role.VENUE_OWNER ||
+        existingUser.role === Role.SUPER_ADMIN
+      ) {
+        throw new BadRequestException(
+          `User with this email already exists with role ${existingUser.role}`
+        );
+      }
+
+      const updatedStaff = await this.usersService.assignStaffRole(
+        existingUser.id,
+        Role.MANAGER,
+        venueId
+      );
+
+      const { password: _, ...safeStaff } = updatedStaff;
+      return {
+        ...safeStaff,
+        message: "Existing user promoted to Manager role successfully",
+      };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -61,9 +82,9 @@ export class UsersController {
   }
 
   @Delete("staff/:id")
-  @Roles(Role.VENUE_OWNER)
+  @Roles(Role.VENUE_OWNER, Role.SUPER_ADMIN)
   async deleteStaff(@Req() req: any, @Param("id") id: string) {
-    const result = await this.usersService.deleteStaff(id, req.user.id);
+    const result = await this.usersService.deleteStaff(id, req.user);
     return {
       message: "Staff member deleted successfully",
       count: result.count,
@@ -97,5 +118,11 @@ export class UsersController {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=customers_export.csv");
     res.status(200).send(csvContent);
+  }
+
+  @Patch(":id")
+  @Roles(Role.VENUE_OWNER, Role.SUPER_ADMIN)
+  async updateUser(@Param("id") id: string, @Req() req: any, @Body() body: any) {
+    return this.usersService.updateUser(id, body, req.user);
   }
 }

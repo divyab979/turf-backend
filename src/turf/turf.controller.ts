@@ -7,8 +7,11 @@ import {
   UseGuards,
   Query,
   Req,
-  Patch
+  Patch,
+  Delete,
+  BadRequestException,
 } from "@nestjs/common";
+import * as fs from "fs";
 
 import {
   JwtAuthGuard,
@@ -82,56 +85,66 @@ findByVenue(
 }
 
   @UseGuards(JwtAuthGuard)
-@Post(":turfId/image")
-@UseInterceptors(
-  FileInterceptor(
-  "file",
-  {
-    storage:
-      diskStorage({
-        destination:
-          "./uploads",
-
-        filename:
-          (
-            req,
-            file,
-            cb
-          ) => {
-
-            cb(
-              null,
-
-              `${Date.now()}-${file.originalname}`
-            );
-          },
-      }),
-  }
-)
-)
-async uploadImage(
-
-  @Param("turfId")
-  turfId: string,
-
-  @UploadedFile()
-  file: Express.Multer.File
-) {
-
-  const uploaded =
-    await cloudinary.uploader.upload(
-      file.path,
+  @Post(":turfId/image")
+  @UseInterceptors(
+    FileInterceptor(
+      "file",
       {
-        folder:
-          "gameup11/turfs",
+        storage:
+          diskStorage({
+            destination: (req, file, cb) => {
+              const uploadDir = "./uploads";
+              if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+              }
+              cb(null, uploadDir);
+            },
+            filename: (req, file, cb) => {
+              const safeName = file.originalname.replace(/\s+/g, "_");
+              cb(null, `${Date.now()}-${safeName}`);
+            },
+          }),
       }
-    );
+    )
+  )
+  async uploadImage(
+    @Param("turfId")
+    turfId: string,
 
-  return this.turfService.addImage(
-    turfId,
-    uploaded.secure_url
-  );
-}
+    @UploadedFile()
+    file: Express.Multer.File
+  ) {
+    if (!file) {
+      throw new BadRequestException("No image file provided");
+    }
+
+    let imageUrl: string;
+    try {
+      const uploaded = await cloudinary.uploader.upload(
+        file.path,
+        {
+          folder: "gameup11/turfs",
+        }
+      );
+      imageUrl = uploaded.secure_url;
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    } catch (error) {
+      console.error("Cloudinary upload error, using base64 fallback:", error);
+      const fileBuffer = fs.readFileSync(file.path);
+      const mimeType = file.mimetype || "image/jpeg";
+      imageUrl = `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    }
+
+    return this.turfService.addImage(
+      turfId,
+      imageUrl
+    );
+  }
 
 @UseGuards(JwtAuthGuard)
 @Post(":turfId/image-url")
@@ -177,5 +190,11 @@ async createMaintenance(
     @Body("status") status: string
   ) {
     return this.turfService.updateMaintenanceIssueStatus(id, status);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(":id")
+  async remove(@Param("id") id: string, @Req() req: any) {
+    return this.turfService.remove(id, req.user);
   }
 }

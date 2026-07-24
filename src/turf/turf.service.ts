@@ -1,5 +1,7 @@
 import {
   Injectable,
+  NotFoundException,
+  ForbiddenException,
 } from "@nestjs/common";
 
 import {
@@ -82,14 +84,16 @@ export class TurfService {
 
       slots: turf.slots.map((slot) => {
 
-        const hasConfirmedBooking =
+        const hasActiveBooking =
+          slot.status === "BOOKED" as any ||
           slot.bookings.some(
             (booking) =>
-              booking.status ===
-              "CONFIRMED"
+              booking.status === "CONFIRMED" ||
+              booking.status === "PENDING"
           );
 
         const hasActiveLock =
+          slot.status === "LOCKED" as any ||
           slot.locks.some(
             (lock) =>
               lock.status === "ACTIVE" &&
@@ -101,15 +105,12 @@ export class TurfService {
         let computedStatus =
           slot.status;
 
-        if (hasConfirmedBooking) {
-
+        if (hasActiveBooking) {
           computedStatus =
             "BOOKED" as any;
-
         } else if (
           hasActiveLock
         ) {
-
           computedStatus =
             "LOCKED" as any;
         }
@@ -203,6 +204,33 @@ export class TurfService {
     return this.prisma.maintenanceIssue.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async remove(id: string, user: { id: string; role: string }) {
+    const turf = await this.prisma.turf.findUnique({
+      where: { id },
+      include: { venue: true },
+    });
+    if (!turf) {
+      throw new NotFoundException("Turf not found");
+    }
+
+    if (user.role !== "SUPER_ADMIN" && turf.venue.ownerId !== user.id) {
+      const userRecord = await this.prisma.user.findUnique({ where: { id: user.id } });
+      if (userRecord?.venueId !== turf.venueId) {
+        throw new ForbiddenException("You do not have permission to delete this turf");
+      }
+    }
+
+    await this.prisma.slotLock.deleteMany({ where: { slot: { turfId: id } } });
+    await this.prisma.slot.deleteMany({ where: { turfId: id } });
+    await this.prisma.turfImage.deleteMany({ where: { turfId: id } });
+    await this.prisma.booking.deleteMany({ where: { turfId: id } });
+    await this.prisma.maintenanceIssue.deleteMany({ where: { turfId: id } });
+
+    return this.prisma.turf.delete({
+      where: { id },
     });
   }
 }

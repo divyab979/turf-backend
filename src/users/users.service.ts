@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
+import * as bcrypt from "bcrypt";
 
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -66,13 +67,31 @@ export class UsersService {
     });
   }
 
-  deleteStaff(id: string, ownerId: string) {
+  assignStaffRole(id: string, role: any, venueId: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        role,
+        venueId,
+      },
+    });
+  }
+
+  deleteStaff(id: string, requester: any) {
+    if (requester.role === "SUPER_ADMIN") {
+      return this.prisma.user.deleteMany({
+        where: {
+          id,
+          role: "MANAGER",
+        },
+      });
+    }
     return this.prisma.user.deleteMany({
       where: {
         id,
         role: "MANAGER",
         venue: {
-          ownerId: ownerId,
+          ownerId: requester.id,
         },
       },
     });
@@ -91,6 +110,50 @@ export class UsersService {
         isSuspended: !user.isSuspended,
       },
     });
+  }
+
+  async updateUser(
+    id: string,
+    data: { name?: string; email?: string; phone?: string; password?: string; venueId?: string; role?: string },
+    requester: any
+  ) {
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id },
+      include: { venue: true },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (requester.role !== "SUPER_ADMIN" && requester.id !== id) {
+      if (targetUser.role === "MANAGER") {
+        if (targetUser.venue?.ownerId !== requester.id) {
+          throw new ForbiddenException("You can only edit staff assigned to your venues");
+        }
+      } else {
+        throw new ForbiddenException("You do not have permission to edit this user");
+      }
+    }
+
+    const updateData: any = {};
+    if (data.name) updateData.name = data.name;
+    if (data.email) updateData.email = data.email;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.venueId !== undefined) updateData.venueId = data.venueId;
+    if (data.role && requester.role === "SUPER_ADMIN") updateData.role = data.role;
+    if (data.password && data.password.trim().length > 0) {
+      updateData.password = await bcrypt.hash(data.password, 10);
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: updateData,
+      include: { venue: true },
+    });
+
+    const { password: _, ...safeUser } = updated;
+    return safeUser;
   }
 
   async getCustomersDataForExport(user: any) {

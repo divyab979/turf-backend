@@ -201,6 +201,12 @@ export class BookingsService {
         },
       })
 
+      // Update slot status in DB so it reflects as BOOKED immediately
+      await this.prisma.slot.update({
+        where: { id: slot.id },
+        data: { status: 'BOOKED' },
+      })
+
       return booking
     } catch (error: any) {
       if (error instanceof BadRequestException) throw error
@@ -313,6 +319,13 @@ export class BookingsService {
       throw new BadRequestException('Booking is already paid');
     }
 
+    if (booking.slotId) {
+      await this.prisma.slot.update({
+        where: { id: booking.slotId },
+        data: { status: 'BOOKED' },
+      });
+    }
+
     return this.prisma.booking.update({
       where: { id: bookingId },
       data: {
@@ -371,6 +384,26 @@ export class BookingsService {
 
     const bookingStatus = remaining === 0 ? 'CONFIRMED' : 'PENDING';
 
+    let resolvedSlotId = dto.slotId;
+    if (!resolvedSlotId && dto.turfId && dto.startTime) {
+      const matchedSlot = await this.prisma.slot.findFirst({
+        where: {
+          turfId: dto.turfId,
+          startTime: dto.startTime,
+        },
+      });
+      if (matchedSlot) {
+        resolvedSlotId = matchedSlot.id;
+      }
+    }
+
+    if (resolvedSlotId) {
+      await this.prisma.slot.update({
+        where: { id: resolvedSlotId },
+        data: { status: 'BOOKED' },
+      });
+    }
+
     return this.prisma.booking.create({
       data: {
         userId,
@@ -389,7 +422,7 @@ export class BookingsService {
         paymentMethod: dto.paymentMethod || 'CASH',
         notes: dto.notes,
         turfId: dto.turfId,
-        slotId: dto.slotId,
+        slotId: resolvedSlotId,
         cashPaymentRequested: isSuperAdmin && advance < total,
       },
     });
@@ -419,6 +452,23 @@ export class BookingsService {
           status: 'CANCELLED',
         },
       });
+
+      const slotIds = expiredBookings.map((b) => b.slotId).filter(Boolean) as string[];
+      for (const sId of slotIds) {
+        const otherActive = await this.prisma.booking.findFirst({
+          where: {
+            slotId: sId,
+            status: { in: ['CONFIRMED', 'PENDING'] },
+            id: { notIn: expiredBookings.map((b) => b.id) },
+          },
+        });
+        if (!otherActive) {
+          await this.prisma.slot.update({
+            where: { id: sId },
+            data: { status: 'AVAILABLE' },
+          });
+        }
+      }
     }
   }
 
