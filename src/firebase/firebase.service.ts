@@ -28,13 +28,17 @@ export class FirebaseService implements OnModuleInit {
 
     const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
 
-    this.firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey: formattedPrivateKey,
-      }),
-    });
+    try {
+      this.firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey: formattedPrivateKey,
+        }),
+      });
+    } catch (e) {
+      console.warn('WARNING: Failed to initialize Firebase Admin SDK:', e);
+    }
   }
 
   async verifyIdToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
